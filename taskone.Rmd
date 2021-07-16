@@ -1,0 +1,76 @@
+---
+title: "task1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(splines2)
+library(plyr)
+library(readr)
+library(dplyr)
+library(caret)
+library(tensor)
+```
+one-hot encoding
+```{r}
+dmy <- dummyVars(" ~ .", data = dat, fullRank = T)
+dat_transformed <- data.frame(predict(dmy, newdata = dat))
+
+glimpse(dat_transformed)
+```
+binary variables
+```{r}
+apply(dat_transformed,2,function(x) {all(na.omit(x) %in% 0:1)})
+```
+
+```{r}
+#large dataframe with 2 continuous variable and 1 categorical variables
+largecol1 = rnorm(100,0,1)
+largecol2 = rnorm(100,0,1)
+largecol3 = rbinom(100,5,.5)
+largeds = cbind(largecol1,largecol2,largecol3)
+
+#small dataframe with 2 continuous variable and 1 categorical variables
+smallcol1 = rnorm(10,0,1)
+smallcol2 = rnorm(10,0,1)
+smallcol3 = rbinom(10,5,.5)
+smallds = cbind(smallcol1,smallcol2,smallcol3)
+```
+
+function
+```{r}
+basis <- function(data, type='poly', degree=NULL) {
+  dat_transformed = scale(data)
+  print(dat_transformed)
+      if (type == 'bspline') {
+    basis <- bSpline(dat_transformed, intercept = TRUE)
+  } else if(type=='poly'){
+    basis <- poly(dat_transformed, degree = degree + 1)
+  }
+  print(dim(basis))
+  if(dim(basis)[1]<=50 && dim(basis)[2]<=50 ) {
+    tensorBasis = tensor(basis[,1],basis[,2])
+    for(i in seq(from=3, to=ncol(basis), by=2)){
+      tensorBasis = tensor(tensorBasis, basis[,i])
+    }
+    return(tensorBasis)
+  } else {
+    additiveBasis = rbind(basis[,1],basis[,2])
+    for(i in seq(from=3, to=ncol(basis), by=2)){
+      additiveBasis = rbind(additiveBasis, basis[,i])
+    }
+    return(additiveBasis)
+  }
+}
+```
+
+```{r}
+blarge = basis(largeds, 'bspline')
+bsmall = basis(smallds, 'bspline')
+plarge = basis(largeds, 'poly', 2)
+psmall = basis(smallds, 'poly', 1)
+
+```
+

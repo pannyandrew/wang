@@ -1,0 +1,66 @@
+---
+title: "tasktwo"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(caret)
+library(splines2)
+library(plyr)
+library(readr)
+library(dplyr)
+library(caret)
+library(tensor)
+library(kernlab)
+```
+
+```{r}
+#large dataframe with 2 continuous variable and 1 categorical variables
+largecol1 = rnorm(100,0,1)
+largecol2 = rnorm(100,0,1)
+largecol3 = rbinom(100,5,.5)
+largeds = cbind(largecol1,largecol2,largecol3)
+
+#small dataframe with 2 continuous variable and 1 categorical variables
+smallcol1 = rnorm(10,0,1)
+smallcol2 = rnorm(10,0,1)
+smallcol3 = rbinom(10,5,.5)
+smallds = cbind(smallcol1,smallcol2,smallcol3)
+```
+
+```{r}
+k1 <- function(t){
+  return(t-.5)
+}
+
+k2 <- function(t){
+  return( (k1(t)^2-1/12)/2 )
+}
+
+k4 <- function(t){
+  return( (k1(t)^4-k1(t)^2/2+7/240)/24 )
+}
+
+K.sob <- function(s,t){
+  ans <- 1 + k1(s)*k1(t) + k2(s)*k2(t) - k4(abs(s-t))
+  return(ans)
+}
+```
+```{r}
+distanceMatrix <- function(data, type='radius', sigma = NULL) {
+  dat_transformed = scale(data)
+  if (type == 'radius') {
+    rbf <- rbfdot(sigma = sigma)
+    kernelMatrix(rbf, data)
+  } else if (type == 'sobolev') {
+    K.sob()
+  } else if (type == 'identity') {
+    
+  }
+}
+
+```
+
+```{r}
+distanceMatrix(largeds, 'radius', .05)
+```
