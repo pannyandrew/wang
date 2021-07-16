@@ -42,14 +42,17 @@ smallds = cbind(smallcol1,smallcol2,smallcol3)
 function
 ```{r}
 basis <- function(data, type='poly', degree=NULL) {
+  #standardize data
   dat_transformed = scale(data)
-  print(dat_transformed)
-      if (type == 'bspline') {
+  
+  #basis selection
+  if (type == 'bspline') {
     basis <- bSpline(dat_transformed, intercept = TRUE)
   } else if(type=='poly'){
     basis <- poly(dat_transformed, degree = degree + 1)
   }
-  print(dim(basis))
+  
+  #if dimension is high, return additive basis, else return tensor product basis
   if(dim(basis)[1]<=50 && dim(basis)[2]<=50 ) {
     tensorBasis = tensor(basis[,1],basis[,2])
     for(i in seq(from=3, to=ncol(basis), by=2)){
@@ -67,6 +70,7 @@ basis <- function(data, type='poly', degree=NULL) {
 ```
 
 ```{r}
+#tests
 blarge = basis(largeds, 'bspline')
 bsmall = basis(smallds, 'bspline')
 plarge = basis(largeds, 'poly', 2)
