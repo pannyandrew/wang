@@ -16,16 +16,20 @@ library(kernlab)
 
 ```{r}
 #large dataframe with 2 continuous variable and 1 categorical variables
-largecol1 = rnorm(100,0,1)
-largecol2 = rnorm(100,0,1)
-largecol3 = rbinom(100,5,.5)
-largeds = cbind(largecol1,largecol2,largecol3)
-
+lcol1 = rnorm(100,0,1)
+lcol2 = rnorm(100,0,1)
+lcol3 = factor(rbinom(100,3,.4))
+lcol4 = factor(rbinom(100,5,.5))
+lcol5 = rnorm(100,0,1)
+largeds = data.frame(lcol1,lcol2,lcol3,lcol4,lcol5)
+cbindlds= cbind(lcol1,lcol2,lcol3,lcol4,lcol5)
 #small dataframe with 2 continuous variable and 1 categorical variables
-smallcol1 = rnorm(10,0,1)
-smallcol2 = rnorm(10,0,1)
-smallcol3 = rbinom(10,5,.5)
-smallds = cbind(smallcol1,smallcol2,smallcol3)
+scol1 = rnorm(3)
+scol2 = rnorm(3,0,1)
+scol3 = factor(rbinom(3,3,.4))
+scol4 = factor(rbinom(3,5,.3))
+smallds = data.frame(scol1,scol2,scol3,scol4)
+
 ```
 
 ```{r}
@@ -45,22 +49,104 @@ K.sob <- function(s,t){
   ans <- 1 + k1(s)*k1(t) + k2(s)*k2(t) - k4(abs(s-t))
   return(ans)
 }
-```
-```{r}
-distanceMatrix <- function(data, type='radius', sigma = NULL) {
-  dat_transformed = scale(data)
-  if (type == 'radius') {
-    rbf <- rbfdot(sigma = sigma)
-    kernelMatrix(rbf, data)
-  } else if (type == 'sobolev') {
-    K.sob()
-  } else if (type == 'identity') {
-    
+
+sobolevDot <- function(x,y) {
+  val = NULL
+  for(i in seq(1,length(x),1)) {
+    val =+ K.sob(x[i],y[i])
   }
+  return(val)
 }
 
+identityDot <- function(x,y) {
+  for(i in seq(1,length(x),1)) {
+    if(x[i] != y[i]) {
+      return(0)
+    }
+  }
+  return(1)
+}
 ```
 
 ```{r}
-distanceMatrix(largeds, 'radius', .05)
+distanceMatrix <- function(data, type='radius', sigma = .05) {
+  #separating numerical and categorical variables into two different dataframes
+  cols = unlist(lapply(data,is.numeric))
+  n_data = data[, cols]
+  n_data = data.matrix(n_data)
+  temp_c_data = data[, !cols]
+  #one hot encoding
+  if(!all(cols)) {
+    dmy <- dummyVars(" ~ .", data = temp_c_data, fullRank = T)
+    c_data <- data.matrix(predict(dmy, newdata = temp_c_data))
+  }
+  if (type == 'radius') {
+    rbf <- rbfdot(sigma = sigma)
+    nMatrix = kernelMatrix(rbf, data.matrix(n_data))
+    cMatrix = kernelMatrix(rbf, data.matrix(c_data))
+    return(nMatrix * cMatrix)
+  } else if (type == 'sobolev') {
+    nDimension = nrow(n_data)
+    nMatrix = matrix(, nrow=nDimension, ncol=nDimension)
+    for(i in seq(1,ncol(nMatrix),1)){
+     for(j in seq(1,nrow(nMatrix),1)){
+       nMatrix[i,j] = sobolevDot(n_data[i,],t(n_data)[,j])
+      }
+    }
+    
+    cDimension = nrow(c_data)
+    cMatrix = matrix(, nrow=cDimension, ncol=cDimension)
+    for(i in seq(1,ncol(cMatrix),1)){
+     for(j in seq(1,nrow(cMatrix),1)){
+       cMatrix[i,j] = sobolevDot(c_data[i,],t(c_data)[,j])
+      }
+    }
+    return(nMatrix * cMatrix)
+  } else if (type == 'identity') {
+    nDimension = nrow(n_data)
+    nMatrix = matrix(, nrow=nDimension, ncol=nDimension)
+    for(i in seq(1,ncol(nMatrix),1)){
+     for(j in seq(1,nrow(nMatrix),1)){
+       nMatrix[i,j] = identityDot(n_data[i,],t(n_data)[,j])
+      }
+    }
+    
+    cDimension = nrow(c_data)
+    cMatrix = matrix(, nrow=cDimension, ncol=cDimension)
+    for(i in seq(1,ncol(cMatrix),1)){
+     for(j in seq(1,nrow(cMatrix),1)){
+       cMatrix[i,j] = identityDot(c_data[i,],t(c_data)[,j])
+      }
+    }
+    return(nMatrix * cMatrix)
+  }
+}
+```
+
+
+```{r}
+distanceMatrix(largeds,'identity')
+```
+
+```{r}
+
+ds
+t(ds)
+```
+
+```{r}
+ds = data.matrix(ds)
+dimension = max(nrow(ds), ncol(ds))
+matrix = matrix(, nrow=dimension, ncol=dimension)
+
+for(i in seq(1,ncol(matrix),1)){
+  for(j in seq(1,nrow(matrix),1)){
+    matrix[i,j] = temp(ds[i,],t(ds)[,j])
+  }
+}
+matrix 
+```
+
+```{r}
+K.sob()
 ```

@@ -20,61 +20,89 @@ dat_transformed <- data.frame(predict(dmy, newdata = dat))
 
 glimpse(dat_transformed)
 ```
-binary variables
-```{r}
-apply(dat_transformed,2,function(x) {all(na.omit(x) %in% 0:1)})
-```
 
 ```{r}
 #large dataframe with 2 continuous variable and 1 categorical variables
-largecol1 = rnorm(100,0,1)
-largecol2 = rnorm(100,0,1)
-largecol3 = rbinom(100,5,.5)
-largeds = cbind(largecol1,largecol2,largecol3)
+lcol1 = rnorm(100,0,1)
+lcol2 = rnorm(100,0,1)
+lcol3 = factor(rbinom(100,3,.4))
+lcol4 = factor(rbinom(100,5,.5))
+lcol5 = rnorm(100,0,1)
+largeds = data.frame(lcol1,lcol2,lcol3,lcol4,lcol5)
 
 #small dataframe with 2 continuous variable and 1 categorical variables
-smallcol1 = rnorm(10,0,1)
-smallcol2 = rnorm(10,0,1)
-smallcol3 = rbinom(10,5,.5)
-smallds = cbind(smallcol1,smallcol2,smallcol3)
+scol1 = rnorm(10,0,1)
+scol2 = rnorm(10,0,1)
+scol3 = factor(rbinom(100,3,.4))
+scol4 = factor(rbinom(100,5,.3))
+smallds = data.frame(scol1,scol2,scol3,scol4)
 ```
 
+```{r}
+
+```
 function
 ```{r}
-basis <- function(data, type='poly', degree=NULL) {
-  #standardize data
-  dat_transformed = scale(data)
-  
+basis <- function(data, basis='poly', degree=NULL, returnBasis='product') {
+  #separating numerical and categorical variables into two different dataframes
+  cols = unlist(lapply(data,is.numeric))
+  n_data = data[, cols]
+  temp_c_data = data[, !cols]
+  #one hot encoding
+  dmy <- dummyVars(" ~ .", data = temp_c_data, fullRank = T)
+  c_data <- data.frame(predict(dmy, newdata = temp_c_data))
   #basis selection
-  if (type == 'bspline') {
-    basis <- bSpline(dat_transformed, intercept = TRUE)
-  } else if(type=='poly'){
-    basis <- poly(dat_transformed, degree = degree + 1)
-  }
+  if (basis == 'bspline') {
+    if(returnBasis == 'product') {
+      nBasis = NULL
+      nTensor = bSpline(unlist(n_data[1]), intercept = TRUE) 
+      for(i in seq(from=2, to=ncol(n_data), by=1)){
+        tempNBasis = bSpline(unlist(n_data[i]), intercept = TRUE) 
+        for(j in seq(from=1, to=ncol(nTensor))){
+          for(k in seq(from=1, to=ncol(tempNBasis), by=1)){
+            nBasis = cbind(nTensor, nTensor[,j]*tempNBasis[,k])
+          }
+        }
+      }
+      cBasis = NULL
+      cTensor = bSpline(unlist(c_data[1]), intercept = TRUE) 
+      for(i in seq(from=2, to=ncol(c_data), by=1)){
+        tempCBasis = bSpline(unlist(c_data[i]), intercept = TRUE) 
+        for(j in seq(from=1, to=ncol(cTensor))){
+          for(k in seq(from=1, to=ncol(tempCBasis), by=1)){
+            cBasis = cbind(cTensor, cTensor[,j]*tempCBasis[,k])
+          }
+        }
+      }
+      return(nBasis*cBasis)
+    } else if(returnBasis  ==' additive') {
+      nBasis = NULL
+      for(i in seq(from=1, to=ncol(n_data), by=1)){
+        nBasis = rbind(nBasis, bSpline(unlist(n_data[i]), intercept = TRUE))
+      }
+      cBasis = NULL
+      for(i in seq(from=1, to=ncol(c_data), by=1)){
+        cBasis = rbind(cBasis, bSpline(unlist(c_data[i]), intercept = TRUE) )
+      }
+      return(nBasis*cBasis)
+    }
   
-  #if dimension is high, return additive basis, else return tensor product basis
-  if(dim(basis)[1]<=50 && dim(basis)[2]<=50 ) {
-    tensorBasis = tensor(basis[,1],basis[,2])
-    for(i in seq(from=3, to=ncol(basis), by=2)){
-      tensorBasis = tensor(tensorBasis, basis[,i])
-    }
-    return(tensorBasis)
-  } else {
-    additiveBasis = rbind(basis[,1],basis[,2])
-    for(i in seq(from=3, to=ncol(basis), by=2)){
-      additiveBasis = rbind(additiveBasis, basis[,i])
-    }
-    return(additiveBasis)
+  } else if(basis=='poly'){
+    basis <- poly(dat_transformed, degree = degree + 1)
+    return(basis)
   }
 }
 ```
 
 ```{r}
 #tests
-blarge = basis(largeds, 'bspline')
-bsmall = basis(smallds, 'bspline')
-plarge = basis(largeds, 'poly', 2)
-psmall = basis(smallds, 'poly', 1)
+blarge = basis(largeds, 'bspline', returnBasis='additive')
+
+
 
 ```
+for bspline, find bspline of each column and find tensor product tX`
+for categorical, one hot encoding and find the basis matrix
+combine both one hot encoding matrix and basis matrices
 
+in basis function provide option to pick tensor or additive basis
